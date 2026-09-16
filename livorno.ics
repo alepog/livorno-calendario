@@ -1,0 +1,110 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//uslivorno-casa//IT
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Livorno - Partite in casa
+X-WR-CALDESC:Partite casalinghe US Livorno 1915 - stagione 2026/2027
+X-WR-TIMEZONE:Europe/Rome
+REFRESH-INTERVAL;VALUE=DURATION:PT12H
+X-PUBLISHED-TTL:PT12H
+BEGIN:VEVENT
+UID:livorno-4477@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART:20260815T190000Z
+DTEND:20260815T210000Z
+SUMMARY:Livorno - Reggiana
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/4477/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4536@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART:20260824T183000Z
+DTEND:20260824T203000Z
+SUMMARY:Livorno-Torres
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-torres-2/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4542@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART:20260906T160000Z
+DTEND:20260906T180000Z
+SUMMARY:Livorno - Atalanta U23
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/4542/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4548@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART:20260916T190000Z
+DTEND:20260916T210000Z
+SUMMARY:Livorno - Vado
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-vado/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4552@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART:20260926T153000Z
+DTEND:20260926T173000Z
+SUMMARY:Livorno - Pianese
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-pianese-2/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4555@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART:20261003T153000Z
+DTEND:20261003T173000Z
+SUMMARY:Livorno - Pescara
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-pescara/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4574@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART;VALUE=DATE:20261018
+DTEND;VALUE=DATE:20261019
+SUMMARY:Livorno - Grosseto (orario da definire)
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-grosseto-2/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4581@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART;VALUE=DATE:20261101
+DTEND;VALUE=DATE:20261102
+SUMMARY:Livorno - Ostia Mare (orario da definire)
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-ostia-mare/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4587@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART;VALUE=DATE:20261122
+DTEND;VALUE=DATE:20261123
+SUMMARY:Livorno-Ravenna (orario da definire)
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-ravenna-2/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4597@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART;VALUE=DATE:20261206
+DTEND;VALUE=DATE:20261207
+SUMMARY:Livorno - Vis Pesaro (orario da definire)
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-vis-pesaro-2/
+END:VEVENT
+BEGIN:VEVENT
+UID:livorno-4601@uslivorno.com
+DTSTAMP:20260916T145913Z
+DTSTART;VALUE=DATE:20261220
+DTEND;VALUE=DATE:20261221
+SUMMARY:Livorno - Gubbio (orario da definire)
+LOCATION:Stadio Armando Picchi\, Livorno
+DESCRIPTION:https://www.uslivorno.com/partita/livorno-gubbio-2/
+END:VEVENT
+END:VCALENDAR

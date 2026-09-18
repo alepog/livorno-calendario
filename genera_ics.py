@@ -8,28 +8,62 @@ ad ogni cambio di stagione senza manutenzione.
 
 Le partite senza orario ufficiale diventano eventi "tutto il giorno":
 appena il club pubblica l'orario, l'esecuzione successiva le converte.
+
+Se la fonte non risponde o risponde male, ogni richiesta viene ritentata.
+Se non se ne cava nulla il file resta quello di prima: solo un avviso finche'
+il calendario e' recente, un errore se e' fermo da piu' di TOLLERANZA, cosi'
+un intoppo passeggero del sito non fa scattare un allarme inutile.
 """
-import html, json, re, sys, urllib.request
+import html, http.client, json, re, sys, time, urllib.error, urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-BASE    = "https://www.uslivorno.com/wp-json/wp/v2"
-ROMA    = ZoneInfo("Europe/Rome")
-DURATA  = timedelta(hours=2)
-LUOGO   = "Stadio Armando Picchi, Livorno"
-USCITA  = "livorno.ics"
+BASE       = "https://www.uslivorno.com/wp-json/wp/v2"
+ROMA       = ZoneInfo("Europe/Rome")
+DURATA     = timedelta(hours=2)
+LUOGO      = "Stadio Armando Picchi, Livorno"
+USCITA     = "livorno.ics"
+TENTATIVI  = 4
+ATTESE     = (3, 10, 30)         # secondi fra un tentativo e il successivo
+TOLLERANZA = timedelta(days=3)   # oltre questa eta' del file la fonte muta diventa un errore
+
+
+class Temporaneo(Exception):
+    """Fonte non disponibile o illeggibile: ha senso riprovare piu' tardi."""
 
 
 def leggi(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "livorno-calendario"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+    motivo = None
+    for n in range(TENTATIVI):
+        if n:
+            time.sleep(ATTESE[min(n - 1, len(ATTESE) - 1)])
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "livorno-calendario"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                corpo = r.read()
+            if not corpo.strip():
+                raise Temporaneo("risposta vuota")
+            try:
+                return json.loads(corpo)
+            except json.JSONDecodeError:
+                inizio = corpo[:120].decode("utf-8", "replace").replace("\n", " ")
+                raise Temporaneo(f"risposta non JSON ({inizio})")
+        except urllib.error.HTTPError as e:
+            if e.code < 500 and e.code not in (403, 408, 425, 429):
+                raise                     # richiesta sbagliata: ritentare non serve
+            motivo = f"HTTP {e.code}"
+        except Temporaneo as e:
+            motivo = str(e)
+        except (OSError, http.client.HTTPException) as e:
+            motivo = f"rete: {e}"
+        print(f"tentativo {n + 1}/{TENTATIVI} fallito - {motivo}", file=sys.stderr)
+    raise Temporaneo(f"{motivo} su {url}")
 
 
 def stagione():
     righe = leggi(f"{BASE}/season?per_page=1&orderby=id&order=desc&_fields=id,name")
     if not righe:
-        raise SystemExit("impossibile determinare la stagione corrente")
+        raise Temporaneo("elenco stagioni vuoto")
     return righe[0]["id"], righe[0].get("name", "?")
 
 
@@ -115,12 +149,43 @@ def ics(elenco, nome_stagione):
     return "\r\n".join(L) + "\r\n"
 
 
+def eta_calendario():
+    """Da quanto e' fermo livorno.ics, letto dal suo DTSTAMP piu' recente."""
+    try:
+        with open(USCITA, encoding="utf-8") as f:
+            testo = f.read()
+    except OSError:
+        return None
+    stampi = re.findall(r"^DTSTAMP:(\d{8}T\d{6}Z)", testo, re.MULTILINE)
+    if not stampi:
+        return None
+    ultimo = max(datetime.strptime(s, "%Y%m%dT%H%M%SZ") for s in stampi)
+    return datetime.now(timezone.utc) - ultimo.replace(tzinfo=timezone.utc)
+
+
+def rinuncia(motivo):
+    """Niente dati usabili: il file resta com'e'.
+    Un intoppo passeggero e' solo un avviso, un calendario fermo da giorni un errore."""
+    eta = eta_calendario()
+    if eta is not None and eta <= TOLLERANZA:
+        print(f"::warning::fonte inutilizzabile ({motivo}): {USCITA} lasciato invariato, "
+              f"generato {int(eta.total_seconds() // 3600)} ore fa")
+        sys.exit(0)
+    stato = "assente o senza DTSTAMP" if eta is None else f"fermo da {eta.days} giorni"
+    print(f"::error::fonte inutilizzabile ({motivo}) e {USCITA} {stato}")
+    sys.exit(1)
+
+
 def main():
-    sid, nome = stagione()
-    elenco = partite(sid)
+    try:
+        sid, nome = stagione()
+        elenco = partite(sid)
+    except Temporaneo as e:
+        rinuncia(str(e))                  # non ritorna
+        return
     print(f"stagione {nome} (id {sid}) - partite in casa: {len(elenco)}")
     if not elenco:
-        raise SystemExit("nessuna partita in casa trovata: non sovrascrivo il file")
+        rinuncia("nessuna partita in casa nei dati ricevuti")
     for p in elenco:
         q = "tutto il giorno" if p["da_definire"] else f"{p['quando']:%H:%M}"
         print(f"  {p['quando']:%d/%m/%Y}  {q:>15}  {p['titolo']}")

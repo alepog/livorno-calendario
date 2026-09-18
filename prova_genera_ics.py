@@ -38,6 +38,8 @@ class Fonte:
 
 
 class Sportello(BaseHTTPRequestHandler):
+    viste = []           # le intestazioni delle richieste arrivate, per poterle controllare
+
     def log_message(self, *a):
         pass
 
@@ -50,6 +52,7 @@ class Sportello(BaseHTTPRequestHandler):
         self.wfile.write(corpo)
 
     def do_GET(self):
+        Sportello.viste.append(dict(self.headers))
         if Fonte.modo == "vuoto":
             return self.rispondi(200, b"")
         if Fonte.modo == "cinquecento":
@@ -153,6 +156,17 @@ class ProvaLetturaFonte(Base):
         self.assertIn(f"DTSTART:{atteso:%Y%m%dT%H%M%SZ}", testo)
         self.assertIn(f"DTSTART;VALUE=DATE:{OGGI + timedelta(days=21):%Y%m%d}", testo)
         self.assertIn("(orario da definire)", testo)
+
+    def test_si_presenta_come_un_client_normale(self):
+        """Il filtro anti-bot del sito rifiuta le richieste anonime: ci si presenta
+        con uno User-Agent compatibile coi browser che dice anche chi siamo."""
+        Sportello.viste.clear()
+        esegui()
+        self.assertTrue(Sportello.viste)
+        for intestazioni in Sportello.viste:
+            self.assertIn("Mozilla/5.0", intestazioni.get("User-Agent", ""))
+            self.assertIn("livorno-calendario", intestazioni.get("User-Agent", ""))
+            self.assertIn("json", intestazioni.get("Accept", ""))
 
     def test_paginazione(self):
         Fonte.modo = "paginato"

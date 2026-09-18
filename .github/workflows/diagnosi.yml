@@ -2,6 +2,8 @@ name: Diagnosi fonte (usa e getta)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/client-normale]     # unico modo di lanciarla da un branch
 
 jobs:
   diagnosi:

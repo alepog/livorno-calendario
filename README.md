@@ -125,6 +125,14 @@ le due cose a confronto partita per partita: dice `tutto coincide` oppure elenca
 le differenze (ed esce con errore). È la risposta alla domanda "posso fidarmi di
 quello che vedo sul telefono?".
 
+Per vedere con i propri occhi come si comporta un'esecuzione programmata, senza
+aspettare il cron:
+
+```
+gh workflow run aggiorna.yml -f forza=0    # come una programmata: rispetta il risparmio
+gh workflow run aggiorna.yml               # legge comunque la fonte
+```
+
 Il pallino verde qui in cima dice com'è andata l'ultima esecuzione. Una fila di
 esecuzioni verdi con l'avviso «pagina di controllo anti-bot» è il funzionamento
 normale, non un guasto: vuol dire che quel runner è stato respinto e che il

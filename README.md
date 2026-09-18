@@ -3,8 +3,8 @@
 Genera `livorno.ics` con le sole partite **casalinghe** del Livorno,
 leggendole dall'API pubblica del sito ufficiale `uslivorno.com`.
 
-Un workflow lo rigenera ogni giorno alle 06:00 UTC: quando la Lega ufficializza
-un orario o sposta una partita, il file si aggiorna da solo.
+Si rigenera ogni giorno da solo: quando la Lega ufficializza un orario o sposta
+una partita, il calendario si aggiorna senza che si debba toccare niente.
 
 ## Iscriversi al calendario
 
@@ -40,29 +40,50 @@ Tre difese, in ordine:
    strada) e scritto in modo atomico. Se un controllo non passa, il workflow
    diventa rosso e resta pubblicata la versione precedente.
 
-Se la fonte non risponde, ogni richiesta viene ritentata cinque volte (attese
-5/20/60/120 secondi) su rete giù, timeout, errori HTTP, risposta vuota o non
-JSON. Se non se ne cava nulla il file resta quello di prima e l'esecuzione
-finisce **verde con un avviso**: diventa rossa solo se il calendario non si
-aggiorna da più di tre giorni (`TOLLERANZA`), così un intoppo passeggero del
-sito non manda un allarme inutile ma un guasto vero sì.
+Se la fonte non risponde, ogni richiesta viene ritentata quattro volte (attese
+5/20/60 secondi) su rete giù, timeout, errori HTTP, risposta vuota o non JSON.
+Se non se ne cava nulla il file resta quello di prima e l'esecuzione finisce
+**verde con un avviso**: diventa rossa solo se il calendario non si aggiorna da
+più di tre giorni (`TOLLERANZA`), così un intoppo passeggero non manda un
+allarme inutile ma un guasto vero sì.
 
-### Il guasto tipico: la pagina anti-bot
+### Chi lo rigenera, e perché non solo GitHub
 
-`uslivorno.com` sta su SiteGround, che a volte risponde alle richieste in
-arrivo dai server di GitHub con la propria pagina di controllo anti-bot
-(`/.well-known/sgcaptcha/…`) invece del JSON. È quello che ha fatto fallire il
-workflow il 18 settembre 2026, ed è il motivo delle attese lunghe fra i
-tentativi: il filtro va e viene, e in genere basta ripassare poco dopo.
+`uslivorno.com` sta su SiteGround, che risponde alle richieste in arrivo dai
+server di GitHub con la propria pagina di controllo anti-bot
+(`/.well-known/sgcaptcha/…`) al posto del JSON. Misurato il 18/09/2026 con una
+diagnosi apposita lanciata da un runner: **20 richieste su 20 respinte, con
+qualunque User-Agent**. È l'indirizzo dei datacenter a essere filtrato, non il
+modo di presentarsi; da una connessione normale le stesse richieste passano.
 
-Il log lo dice con parole chiare (`il sito ha risposto con la propria pagina
-anti-bot invece del JSON`), l'esecuzione resta verde e il calendario non viene
-toccato. Se il filtro diventasse permanente, dopo tre giorni l'esecuzione
-diventa rossa e arriva la mail: a quel punto le strade sono chiedere alla
-società (o al suo hoster) di lasciar passare le letture dell'API, oppure
-spostare la generazione su una macchina con una connessione normale, per
-esempio il proprio computer, che pubblichi il file sul repo. Le pagine di
-controllo non vanno aggirate.
+Così il lavoro lo fa il Mac e GitHub fa la guardia:
+
+- **il Mac**, ogni giorno alle 8:30, con l'agente installato da
+  `locale/installa.sh`: legge la fonte, rigenera `livorno.ics` e lo pubblica sul
+  repo, da cui GitHub Pages lo serve al telefono;
+- **il workflow su GitHub**, ogni giorno alle 06:00 UTC, prova comunque. Se il
+  filtro lo respinge resta verde con un avviso e non tocca il file, ma il suo
+  controllo di anzianità continua a valere: se il Mac stesse fermo per più di
+  tre giorni diventerebbe rosso e arriverebbe la mail. È la sentinella che
+  sorveglia il Mac — e se un giorno il filtro sparisse, GitHub ricomincerebbe a
+  fare il lavoro da sé.
+
+Nessuna pagina di controllo viene aggirata: si legge un endpoint pubblico, in
+sola lettura, tre richieste al giorno, da una connessione normale.
+
+### Installare o togliere la generazione dal Mac
+
+```
+git clone https://github.com/alepog/livorno-calendario.git ~/Claude/livorno-calendario
+cd ~/Claude/livorno-calendario
+git config credential."https://github.com".helper '!gh auth git-credential'
+./locale/installa.sh              # 8:30; "./locale/installa.sh 7 15" per le 7:15
+```
+
+- eseguire subito senza aspettare domani:
+  `launchctl kickstart -p gui/$UID/com.alepog.livorno-calendario`
+- vedere com'è andata: `tail locale/ultima-esecuzione.log`
+- togliere tutto: `./locale/disinstalla.sh` (il repo e il calendario restano)
 
 ## Dettagli che si notano usandolo
 
@@ -84,11 +105,12 @@ controllo non vanno aggirate.
 python prova_genera_ics.py
 ```
 
-Ventuno prove contro una finta fonte locale, senza rete: risposta parziale,
-risposta vuota, HTTP 500, pagina di manutenzione al posto del JSON, dato con
-data illeggibile, titolo inatteso, partita dichiarata in trasferta, cambio di
-stagione, paginazione, righe lunghe, calendario vecchio. Girano anche in CI
-prima di ogni generazione: se una fallisce, `livorno.ics` non viene toccato.
+Venticinque prove contro una finta fonte locale, senza rete: risposta parziale,
+risposta vuota, HTTP 500, pagina di manutenzione e pagina anti-bot al posto del
+JSON, data illeggibile, titolo inatteso, partita dichiarata in trasferta, cambio
+di stagione, paginazione, righe lunghe, calendario vecchio, e i controlli che
+intercettano sia una partita persa sia un file rotto. Girano anche in CI prima
+di ogni generazione: se una fallisce, `livorno.ics` non viene toccato.
 
 ## Se il workflow smettesse di girare del tutto (facoltativo)
 

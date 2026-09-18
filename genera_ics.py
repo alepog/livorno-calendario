@@ -31,7 +31,7 @@ prima con un avviso, e diventa un errore rosso
 solo se il calendario non si aggiorna da piu' di TOLLERANZA, cosi' un intoppo
 passeggero del sito non fa scattare un allarme inutile.
 """
-import html, http.client, json, os, re, sys, time, urllib.error, urllib.request
+import html, http.client, http.cookiejar, json, os, re, sys, time, urllib.error, urllib.request
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -40,11 +40,20 @@ ROMA         = ZoneInfo("Europe/Rome")
 DURATA       = timedelta(hours=2)
 LUOGO        = "Stadio Armando Picchi, Livorno"
 USCITA       = "livorno.ics"
-TENTATIVI    = 5
-ATTESE       = (5, 20, 60, 120)    # secondi fra un tentativo e il successivo: il filtro
-                                   # anti-bot del sito va e viene, conviene aspettarlo
-INTESTAZIONI = {"User-Agent": "livorno-calendario (+https://github.com/alepog/livorno-calendario)",
-                "Accept": "application/json"}
+TENTATIVI    = 4
+ATTESE       = (5, 20, 60)         # secondi fra un tentativo e il successivo
+
+# Ci si presenta dicendo chi siamo e dove trovarci. Provato: dai runner di GitHub il
+# filtro anti-bot del sito risponde con la sua pagina di controllo a prescindere dallo
+# User-Agent (20 richieste su 20, il 18/09/2026), quindi fingersi un browser non
+# servirebbe a niente. Cookie e redirect si gestiscono come fa un client normale.
+INTESTAZIONI = {
+    "User-Agent": "livorno-calendario/1.0 (+https://github.com/alepog/livorno-calendario)",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+}
+BISCOTTI     = http.cookiejar.CookieJar()
+APRI         = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(BISCOTTI))
 TOLLERANZA   = timedelta(days=3)   # oltre questa eta' del file la fonte muta diventa un errore
 STAGIONI     = 2                   # stagioni da guardare: la corrente piu' la precedente
 OBLIO        = timedelta(days=400)  # dopo quanto una partita passata sparita dalla fonte si lascia andare
@@ -79,7 +88,7 @@ def chiedi(url):
             time.sleep(ATTESE[min(n - 1, len(ATTESE) - 1)])
         try:
             req = urllib.request.Request(url, headers=INTESTAZIONI)
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with APRI.open(req, timeout=30) as r:
                 corpo, intestazioni = r.read(), r.headers
             if not corpo.strip():
                 raise Temporaneo("risposta vuota")

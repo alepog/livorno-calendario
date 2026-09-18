@@ -10,15 +10,25 @@ on:
 permissions:
   contents: write
 
+concurrency:                  # niente due esecuzioni sovrapposte sullo stesso file
+  group: aggiorna-calendario
+  cancel-in-progress: false
+
 jobs:
   aggiorna:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VIVO: ${{ secrets.HEALTHCHECK_URL }}   # facoltativo, vedi README
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+
+      - name: Prove
+        run: python -B -W error prova_genera_ics.py
 
       - name: Genera livorno.ics
         run: python genera_ics.py
@@ -35,3 +45,11 @@ jobs:
           else
             echo "nessuna modifica"
           fi
+
+      - name: Battito, il calendario e' vivo
+        if: success() && env.VIVO != ''
+        run: curl -fsS --retry 3 --max-time 20 "$VIVO" -o /dev/null && echo "battito inviato"
+
+      - name: Battito di allarme
+        if: failure() && env.VIVO != ''
+        run: curl -fsS --retry 3 --max-time 20 "$VIVO/fail" -o /dev/null || true

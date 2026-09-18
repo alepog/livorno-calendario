@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
 
       - name: Prove
-        run: python -W error prova_genera_ics.py
+        run: python -B -W error prova_genera_ics.py
 
       - name: Genera livorno.ics
         run: python genera_ics.py

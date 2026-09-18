@@ -176,7 +176,7 @@ def raduna():
 # ------------------------------------------------------------------ testo ICS
 
 def esc(s):
-    return (s.replace("\\", "\\\\").replace(";", "\;")
+    return (s.replace("\\", "\\\\").replace(";", "\\;")
              .replace(",", "\\,").replace("\n", "\\n"))
 
 
@@ -398,7 +398,7 @@ def riassunto(eventi):
     for righe in eventi:
         prop = {r.split(":", 1)[0]: r.split(":", 1)[1] for r in righe}
         avvio = next(v for k, v in prop.items() if k.split(";")[0] == "DTSTART")
-        titolo = prop.get("SUMMARY", "?").replace("\\,", ",").replace("\;", ";")
+        titolo = prop.get("SUMMARY", "?").replace("\\,", ",").replace("\\;", ";")
         if avvio.endswith("Z"):
             q = (datetime.strptime(avvio, "%Y%m%dT%H%M%SZ")
                  .replace(tzinfo=timezone.utc).astimezone(ROMA))

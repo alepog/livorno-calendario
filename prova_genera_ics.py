@@ -6,7 +6,7 @@ segreto, si lancia con "python prova_genera_ics.py".
 La promessa da difendere e' una sola: una partita in casa gia' pubblicata non
 si perde mai, qualunque cosa combini il sito della societa'.
 """
-import contextlib, io, json, os, re, tempfile, threading, unittest
+import contextlib, io, json, os, re, tempfile, threading, unittest, warnings
 from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -286,6 +286,18 @@ class ProvaAggiornamenti(Base):
         self.assertEqual(codice, 0, detto)
         self.assertEqual(presenti(), {uid(20), uid(21)})
         self.assertIn("2027/2028", contenuto())
+
+
+class ProvaSorgente(unittest.TestCase):
+    def test_niente_escape_ambigue_nel_sorgente(self):
+        """Le escape non valide oggi sono un warning, da Python 3.14 un errore.
+        Si compila il sorgente da zero: la cache dei .pyc le nasconderebbe."""
+        casa = os.path.dirname(os.path.abspath(__file__))
+        for nome in ("genera_ics.py", "prova_genera_ics.py"):
+            with self.subTest(file=nome), warnings.catch_warnings():
+                warnings.simplefilter("error")
+                with open(os.path.join(casa, nome), encoding="utf-8") as f:
+                    compile(f.read(), nome, "exec")
 
 
 class ProvaFileValido(Base):

@@ -1,0 +1,61 @@
+name: Diagnosi fonte (usa e getta)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnosi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Confronta i due modi di presentarsi
+        run: |
+          python - <<'PY'
+          import http.cookiejar, json, time, urllib.error, urllib.request
+
+          URL = ("https://www.uslivorno.com/wp-json/wp/v2/season"
+                 "?per_page=100&_fields=id,name&page=1")
+          SPOGLIO = {"User-Agent": "livorno-calendario"}
+          NORMALE = {
+              "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                             "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 "
+                             "livorno-calendario/1.0 (+https://github.com/alepog/livorno-calendario)"),
+              "Accept": "application/json, text/plain, */*",
+              "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+          }
+
+          def prova(intestazioni, apri):
+              try:
+                  with apri.open(urllib.request.Request(URL, headers=intestazioni), timeout=30) as r:
+                      corpo = r.read()
+              except urllib.error.HTTPError as e:
+                  return f"HTTP {e.code}"
+              except Exception as e:
+                  return f"rete: {type(e).__name__}"
+              if not corpo.strip():
+                  return "vuoto"
+              if b"sgcaptcha" in corpo:
+                  return "PAGINA ANTI-BOT"
+              try:
+                  json.loads(corpo)
+              except json.JSONDecodeError:
+                  return "non JSON"
+              return "json ok"
+
+          conta = {"spoglio": {}, "normale": {}}
+          for giro in range(1, 11):
+              a = prova(SPOGLIO, urllib.request.build_opener())
+              b = prova(NORMALE, urllib.request.build_opener(
+                  urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())))
+              conta["spoglio"][a] = conta["spoglio"].get(a, 0) + 1
+              conta["normale"][b] = conta["normale"].get(b, 0) + 1
+              print(f"giro {giro:>2}:  UA spoglio -> {a:<16}  UA normale -> {b}", flush=True)
+              time.sleep(20)
+          print("\nriepilogo")
+          print("  UA spoglio:", conta["spoglio"])
+          print("  UA normale:", conta["normale"])
+          PY

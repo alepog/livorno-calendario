@@ -17,7 +17,7 @@ concurrency:                  # niente due esecuzioni sovrapposte sullo stesso f
 jobs:
   aggiorna:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       VIVO: ${{ secrets.HEALTHCHECK_URL }}   # facoltativo, vedi README
     steps:

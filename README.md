@@ -40,12 +40,29 @@ Tre difese, in ordine:
    strada) e scritto in modo atomico. Se un controllo non passa, il workflow
    diventa rosso e resta pubblicata la versione precedente.
 
-Se la fonte non risponde, ogni richiesta viene ritentata quattro volte (attese
-3/10/30 secondi) su rete giù, timeout, errori HTTP, risposta vuota o non JSON.
-Se non se ne cava nulla il file resta quello di prima e l'esecuzione finisce
-**verde con un avviso**: diventa rossa solo se il calendario non si aggiorna da
-più di tre giorni (`TOLLERANZA`), così un intoppo passeggero del sito non manda
-un allarme inutile ma un guasto vero sì.
+Se la fonte non risponde, ogni richiesta viene ritentata cinque volte (attese
+5/20/60/120 secondi) su rete giù, timeout, errori HTTP, risposta vuota o non
+JSON. Se non se ne cava nulla il file resta quello di prima e l'esecuzione
+finisce **verde con un avviso**: diventa rossa solo se il calendario non si
+aggiorna da più di tre giorni (`TOLLERANZA`), così un intoppo passeggero del
+sito non manda un allarme inutile ma un guasto vero sì.
+
+### Il guasto tipico: la pagina anti-bot
+
+`uslivorno.com` sta su SiteGround, che a volte risponde alle richieste in
+arrivo dai server di GitHub con la propria pagina di controllo anti-bot
+(`/.well-known/sgcaptcha/…`) invece del JSON. È quello che ha fatto fallire il
+workflow il 18 settembre 2026, ed è il motivo delle attese lunghe fra i
+tentativi: il filtro va e viene, e in genere basta ripassare poco dopo.
+
+Il log lo dice con parole chiare (`il sito ha risposto con la propria pagina
+anti-bot invece del JSON`), l'esecuzione resta verde e il calendario non viene
+toccato. Se il filtro diventasse permanente, dopo tre giorni l'esecuzione
+diventa rossa e arriva la mail: a quel punto le strade sono chiedere alla
+società (o al suo hoster) di lasciar passare le letture dell'API, oppure
+spostare la generazione su una macchina con una connessione normale, per
+esempio il proprio computer, che pubblichi il file sul repo. Le pagine di
+controllo non vanno aggirate.
 
 ## Dettagli che si notano usandolo
 

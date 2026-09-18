@@ -34,7 +34,7 @@ class Fonte:
     """Stato della finta fonte: ogni prova lo riscrive come le serve."""
     stagioni = [{"id": 191, "name": "2026/2027"}, {"id": 190, "name": "2025/2026"}]
     partite = {}
-    modo = "ok"          # ok | vuoto | cinquecento | nonjson | paginato
+    modo = "ok"          # ok | vuoto | cinquecento | nonjson | antibot | paginato
 
 
 class Sportello(BaseHTTPRequestHandler):
@@ -56,6 +56,9 @@ class Sportello(BaseHTTPRequestHandler):
             return self.rispondi(500, b'{"code":"guasto"}')
         if Fonte.modo == "nonjson":
             return self.rispondi(200, b"<html>manutenzione</html>")
+        if Fonte.modo == "antibot":      # cio' che il sito ha davvero risposto il 18/09
+            return self.rispondi(200, b'<html><head><meta http-equiv="refresh" '
+                                      b'content="0;/.well-known/sgcaptcha/?r=%2Fwp-json%2F">')
         pezzi = urlparse(self.path)
         query = parse_qs(pezzi.query)
         if pezzi.path.endswith("/season"):
@@ -207,13 +210,23 @@ class ProvaNonSiPerdeNulla(Base):
 
     def test_guasto_del_sito_lascia_il_file_intatto(self):
         self.calendario_iniziale()
-        for modo in ("cinquecento", "nonjson"):
+        for modo in ("cinquecento", "nonjson", "antibot"):
             with self.subTest(modo=modo):
                 prima = contenuto()
                 Fonte.modo = modo
                 codice, _ = esegui()
                 self.assertEqual(codice, 0)
                 self.assertEqual(contenuto(), prima)
+
+    def test_pagina_antibot_riconosciuta_e_spiegata(self):
+        """Il guasto vero del 18/09: il file resta, e il log dice di chi e' la colpa."""
+        self.calendario_iniziale()
+        prima = contenuto()
+        Fonte.modo = "antibot"
+        codice, detto = esegui()
+        self.assertEqual(codice, 0)
+        self.assertEqual(contenuto(), prima)
+        self.assertIn("pagina anti-bot", detto)
 
     def test_nessuna_partita_in_casa_non_svuota_il_calendario(self):
         tutte = self.calendario_iniziale()

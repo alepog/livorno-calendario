@@ -24,8 +24,10 @@ Tre difese, in ordine:
 Le partite senza orario ufficiale diventano eventi "tutto il giorno":
 appena il club pubblica l'orario, l'esecuzione successiva le converte.
 
-Se la fonte non risponde, ogni richiesta viene ritentata; se non se ne cava
-nulla il file resta quello di prima con un avviso, e diventa un errore rosso
+Se la fonte non risponde, ogni richiesta viene ritentata con attese crescenti
+(il filtro anti-bot del sito a volte risponde con una pagina di controllo al
+posto del JSON, ma dura poco); se non se ne cava nulla il file resta quello di
+prima con un avviso, e diventa un errore rosso
 solo se il calendario non si aggiorna da piu' di TOLLERANZA, cosi' un intoppo
 passeggero del sito non fa scattare un allarme inutile.
 """
@@ -38,8 +40,11 @@ ROMA         = ZoneInfo("Europe/Rome")
 DURATA       = timedelta(hours=2)
 LUOGO        = "Stadio Armando Picchi, Livorno"
 USCITA       = "livorno.ics"
-TENTATIVI    = 4
-ATTESE       = (3, 10, 30)         # secondi fra un tentativo e il successivo
+TENTATIVI    = 5
+ATTESE       = (5, 20, 60, 120)    # secondi fra un tentativo e il successivo: il filtro
+                                   # anti-bot del sito va e viene, conviene aspettarlo
+INTESTAZIONI = {"User-Agent": "livorno-calendario (+https://github.com/alepog/livorno-calendario)",
+                "Accept": "application/json"}
 TOLLERANZA   = timedelta(days=3)   # oltre questa eta' del file la fonte muta diventa un errore
 STAGIONI     = 2                   # stagioni da guardare: la corrente piu' la precedente
 OBLIO        = timedelta(days=400)  # dopo quanto una partita passata sparita dalla fonte si lascia andare
@@ -54,6 +59,16 @@ def avvisa(testo):
     print(f"::warning::{testo}")
 
 
+def diagnosi(corpo):
+    """Perche' la risposta non e' JSON: serve a capire il guasto dal log."""
+    testo = corpo[:300].decode("utf-8", "replace").replace("\n", " ")
+    if "sgcaptcha" in testo or "captcha" in testo.lower():
+        return "il sito ha risposto con la propria pagina anti-bot invece del JSON"
+    if testo.lstrip().startswith("<"):
+        return f"il sito ha risposto con una pagina HTML invece del JSON ({testo[:90].strip()})"
+    return f"risposta non JSON ({testo[:120]})"
+
+
 # --------------------------------------------------------------- lettura fonte
 
 def chiedi(url):
@@ -63,7 +78,7 @@ def chiedi(url):
         if n:
             time.sleep(ATTESE[min(n - 1, len(ATTESE) - 1)])
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "livorno-calendario"})
+            req = urllib.request.Request(url, headers=INTESTAZIONI)
             with urllib.request.urlopen(req, timeout=30) as r:
                 corpo, intestazioni = r.read(), r.headers
             if not corpo.strip():
@@ -71,8 +86,7 @@ def chiedi(url):
             try:
                 dati = json.loads(corpo)
             except json.JSONDecodeError:
-                raise Temporaneo("risposta non JSON (%s)"
-                                 % corpo[:120].decode("utf-8", "replace").replace("\n", " "))
+                raise Temporaneo(diagnosi(corpo))
             if not isinstance(dati, list):
                 raise Temporaneo(f"atteso un elenco, arrivato {str(dati)[:120]}")
             return dati, intestazioni

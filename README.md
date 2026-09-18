@@ -102,7 +102,8 @@ git config credential."https://github.com".helper '!gh auth git-credential'
 ## Prove
 
 ```
-python prova_genera_ics.py
+python prova_genera_ics.py      # il generatore, con una finta fonte HTTP locale
+./locale/prova_aggiorna.sh      # la pubblicazione dal Mac, su repository finti
 ```
 
 Venticinque prove contro una finta fonte locale, senza rete: risposta parziale,
@@ -111,6 +112,12 @@ JSON, data illeggibile, titolo inatteso, partita dichiarata in trasferta, cambio
 di stagione, paginazione, righe lunghe, calendario vecchio, e i controlli che
 intercettano sia una partita persa sia un file rotto. Girano anche in CI prima
 di ogni generazione: se una fallisce, `livorno.ics` non viene toccato.
+
+Le prove della pubblicazione (18 verifiche, senza rete e senza GitHub) coprono i
+casi che sono capitati davvero: la corsa persa quando il workflow pubblica negli
+stessi secondi, un rebase rimasto a metà da un'esecuzione precedente, la
+generazione che fallisce, e le modifiche umane in corso su altri file — nei
+quali lo script si ferma senza toccare nulla.
 
 ## Se il workflow smettesse di girare del tutto (facoltativo)
 

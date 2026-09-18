@@ -75,14 +75,23 @@ class Sportello(BaseHTTPRequestHandler):
         return self.rispondi(200, json.dumps(elenco).encode())
 
 
-def esegui():
-    """Lancia main() come fa il workflow: restituisce (codice di uscita, stampato)."""
+def esegui(forza=True):
+    """Lancia main() come fa il workflow: restituisce (codice di uscita, stampato).
+    forza=True salta il risparmio della fonte, come fa un avvio manuale."""
     uscita, codice = io.StringIO(), 0
-    with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(io.StringIO()):
-        try:
-            g.main()
-        except SystemExit as e:
-            codice = e.code or 0
+    prima = os.environ.get("FORZA")
+    os.environ["FORZA"] = "1" if forza else ""
+    try:
+        with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(io.StringIO()):
+            try:
+                g.main()
+            except SystemExit as e:
+                codice = e.code or 0
+    finally:
+        if prima is None:
+            del os.environ["FORZA"]
+        else:
+            os.environ["FORZA"] = prima
     return codice, uscita.getvalue()
 
 
@@ -134,6 +143,11 @@ class Base(unittest.TestCase):
 
     def tearDown(self):
         os.chdir(self.prima)
+
+    def invecchia(self, ore):
+        """Sposta indietro il DTSTAMP del calendario, per fingere che sia vecchio."""
+        quando = (datetime.now(timezone.utc) - timedelta(hours=ore)).strftime("%Y%m%dT%H%M%SZ")
+        riscrivi(re.sub(r"DTSTAMP:\d{8}T\d{6}Z", f"DTSTAMP:{quando}", contenuto("")))
 
     def calendario_iniziale(self):
         """Parte da un calendario appena generato, come quello in produzione."""
@@ -239,7 +253,7 @@ class ProvaNonSiPerdeNulla(Base):
         codice, detto = esegui()
         self.assertEqual(codice, 0)
         self.assertEqual(contenuto(), prima)
-        self.assertIn("pagina anti-bot", detto)
+        self.assertIn("anti-bot", detto)
 
     def test_nessuna_partita_in_casa_non_svuota_il_calendario(self):
         tutte = self.calendario_iniziale()
@@ -259,6 +273,53 @@ class ProvaNonSiPerdeNulla(Base):
         self.assertEqual(codice, 1)
         self.assertIn("::error::", detto)
         self.assertIn("fermo da 10 giorni", detto)
+
+
+class ProvaRisparmioDellaFonte(Base):
+    """Il workflow gira piu' volte al giorno solo per riprovare: quando il
+    calendario e' gia' aggiornato la fonte non va disturbata."""
+
+    def test_calendario_fresco_non_chiede_niente(self):
+        self.calendario_iniziale()
+        Sportello.viste.clear()
+        codice, detto = esegui(forza=False)
+        self.assertEqual(codice, 0)
+        self.assertEqual(Sportello.viste, [])
+        self.assertIn("niente da chiedere alla fonte", detto)
+
+    def test_calendario_vecchio_invece_si(self):
+        self.calendario_iniziale()
+        self.invecchia(30)
+        Sportello.viste.clear()
+        codice, _ = esegui(forza=False)
+        self.assertEqual(codice, 0)
+        self.assertTrue(Sportello.viste)
+
+    def test_avvio_manuale_chiede_comunque(self):
+        self.calendario_iniziale()
+        Sportello.viste.clear()
+        esegui(forza=True)
+        self.assertTrue(Sportello.viste)
+
+    def test_pagina_antibot_non_si_ritenta(self):
+        """E' appiccicosa per indirizzo: una richiesta e si rinuncia, senza
+        macinare tentativi inutili. Si riprovera' alla prossima esecuzione."""
+        self.calendario_iniziale()
+        prima = contenuto()
+        Fonte.modo = "antibot"
+        Sportello.viste.clear()
+        codice, detto = esegui()
+        self.assertEqual(codice, 0)
+        self.assertEqual(len(Sportello.viste), 1, "una sola richiesta, non quattro")
+        self.assertEqual(contenuto(), prima)
+        self.assertIn("anti-bot", detto)
+
+    def test_guasto_normale_invece_si_ritenta(self):
+        self.calendario_iniziale()
+        Fonte.modo = "cinquecento"
+        Sportello.viste.clear()
+        esegui()
+        self.assertEqual(len(Sportello.viste), g.TENTATIVI)
 
 
 class ProvaAggiornamenti(Base):

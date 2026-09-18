@@ -24,9 +24,13 @@ Tre difese, in ordine:
 Le partite senza orario ufficiale diventano eventi "tutto il giorno":
 appena il club pubblica l'orario, l'esecuzione successiva le converte.
 
-Se la fonte non risponde, ogni richiesta viene ritentata con attese crescenti
-(il filtro anti-bot del sito a volte risponde con una pagina di controllo al
-posto del JSON, ma dura poco); se non se ne cava nulla il file resta quello di
+Se la fonte non risponde, ogni richiesta viene ritentata con attese crescenti.
+Se invece risponde con la propria pagina di controllo anti-bot si rinuncia
+subito: succede per indirizzo IP e dura minuti, percio' la si riprova alla
+esecuzione successiva, che parte da un runner diverso. Perche' questo basti, il
+workflow gira piu' volte al giorno e non chiede nulla alla fonte se il
+calendario e' stato generato da meno di FRESCO ore: su una giornata normale la
+fonte viene letta una volta sola. Se non si cava nulla il file resta quello di
 prima con un avviso, e diventa un errore rosso
 solo se il calendario non si aggiorna da piu' di TOLLERANZA, cosi' un intoppo
 passeggero del sito non fa scattare un allarme inutile.
@@ -55,6 +59,9 @@ INTESTAZIONI = {
 BISCOTTI     = http.cookiejar.CookieJar()
 APRI         = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(BISCOTTI))
 TOLLERANZA   = timedelta(days=3)   # oltre questa eta' del file la fonte muta diventa un errore
+FRESCO       = timedelta(hours=20) # se il calendario e' piu' recente di cosi', la fonte non
+                                   # viene disturbata: le esecuzioni ravvicinate servono solo
+                                   # a riprovare finche' una ce la fa (FORZA=1 le obbliga)
 STAGIONI     = 2                   # stagioni da guardare: la corrente piu' la precedente
 OBLIO        = timedelta(days=400)  # dopo quanto una partita passata sparita dalla fonte si lascia andare
 OBBLIGATORIE = ("UID", "DTSTART", "SUMMARY", "DTSTAMP")
@@ -64,15 +71,26 @@ class Temporaneo(Exception):
     """Fonte non disponibile o illeggibile: ha senso riprovare piu' tardi."""
 
 
+class Bloccato(Temporaneo):
+    """La fonte ha risposto con la propria pagina di controllo anti-bot. Misurato:
+    quando succede vale per quell'indirizzo IP e dura minuti, quindi insistere
+    subito e' solo rumore - si rinuncia per questa volta e si riprovera' alla
+    prossima esecuzione, che parte da un altro runner. La pagina non si aggira."""
+
+
 def avvisa(testo):
     print(f"::warning::{testo}")
+
+
+def pagina_di_controllo(corpo):
+    """La fonte ha risposto con la pagina anti-bot invece dei dati?"""
+    testo = corpo[:300].decode("utf-8", "replace").lower()
+    return "sgcaptcha" in testo or "captcha" in testo
 
 
 def diagnosi(corpo):
     """Perche' la risposta non e' JSON: serve a capire il guasto dal log."""
     testo = corpo[:300].decode("utf-8", "replace").replace("\n", " ")
-    if "sgcaptcha" in testo or "captcha" in testo.lower():
-        return "il sito ha risposto con la propria pagina anti-bot invece del JSON"
     if testo.lstrip().startswith("<"):
         return f"il sito ha risposto con una pagina HTML invece del JSON ({testo[:90].strip()})"
     return f"risposta non JSON ({testo[:120]})"
@@ -95,10 +113,15 @@ def chiedi(url):
             try:
                 dati = json.loads(corpo)
             except json.JSONDecodeError:
+                if pagina_di_controllo(corpo):
+                    raise Bloccato("il sito ha risposto con la propria pagina di controllo "
+                                   "anti-bot invece del JSON: riprovo alla prossima esecuzione")
                 raise Temporaneo(diagnosi(corpo))
             if not isinstance(dati, list):
                 raise Temporaneo(f"atteso un elenco, arrivato {str(dati)[:120]}")
             return dati, intestazioni
+        except Bloccato:
+            raise                     # niente da guadagnare a insistere da questo indirizzo
         except urllib.error.HTTPError as e:
             motivo = f"HTTP {e.code}"
         except Temporaneo as e:
@@ -445,6 +468,11 @@ def riassunto(eventi):
 
 def main():
     ora = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    eta = eta_calendario()
+    if not os.environ.get("FORZA") and eta is not None and eta < FRESCO:
+        print(f"{USCITA} generato {int(eta.total_seconds() // 3600)} ore fa: "
+              f"e' aggiornato, non c'e' niente da chiedere alla fonte")
+        sys.exit(0)
     pubblicati = eventi_pubblicati()
     try:
         partite, trasferte, nome = raduna()

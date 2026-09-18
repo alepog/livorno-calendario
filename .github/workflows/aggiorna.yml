@@ -2,7 +2,13 @@ name: Aggiorna calendario
 
 on:
   schedule:
-    - cron: "0 6 * * *"      # ogni giorno alle 06:00 UTC
+    # Ogni due ore. Non per leggere dodici volte la fonte, ma per avere dodici
+    # occasioni: il filtro anti-bot del sito respinge un runner per volta e a
+    # caso, e ogni esecuzione parte da un indirizzo diverso. Appena una riesce,
+    # le successive vedono il calendario fresco (FRESCO in genera_ics.py) ed
+    # escono senza chiedere niente: su una giornata normale la fonte viene
+    # letta una volta sola.
+    - cron: "7 */2 * * *"
   workflow_dispatch:          # avvio manuale dal sito
   push:
     branches: [main]
@@ -20,6 +26,9 @@ jobs:
     timeout-minutes: 15
     env:
       VIVO: ${{ secrets.HEALTHCHECK_URL }}   # facoltativo, vedi README
+      # Le esecuzioni programmate rispettano il risparmio della fonte; un avvio
+      # manuale o un push vogliono una lettura vera, quindi la forzano.
+      FORZA: ${{ github.event_name != 'schedule' && '1' || '' }}
     steps:
       - uses: actions/checkout@v7
 

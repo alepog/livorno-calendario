@@ -42,36 +42,49 @@ Tre difese, in ordine:
 
 Se la fonte non risponde, ogni richiesta viene ritentata quattro volte (attese
 5/20/60 secondi) su rete giù, timeout, errori HTTP, risposta vuota o non JSON.
-Se non se ne cava nulla il file resta quello di prima e l'esecuzione finisce
-**verde con un avviso**: diventa rossa solo se il calendario non si aggiorna da
-più di tre giorni (`TOLLERANZA`), così un intoppo passeggero non manda un
-allarme inutile ma un guasto vero sì.
+Se invece risponde con la propria pagina di controllo anti-bot si rinuncia
+**subito**, senza ritentare: è appiccicosa per indirizzo IP e dura minuti, quindi
+insistere sarebbe solo rumore sul sito di qualcun altro. In ogni caso il file
+resta quello di prima e l'esecuzione finisce **verde con un avviso**: diventa
+rossa solo se il calendario non si aggiorna da più di tre giorni
+(`TOLLERANZA`), così un intoppo passeggero non manda un allarme inutile ma un
+guasto vero sì.
 
-### Chi lo rigenera, e perché non solo GitHub
+### Chi lo rigenera: dodici occasioni al giorno
 
-`uslivorno.com` sta su SiteGround, che risponde alle richieste in arrivo dai
+`uslivorno.com` sta su SiteGround, che risponde a molte richieste in arrivo dai
 server di GitHub con la propria pagina di controllo anti-bot
-(`/.well-known/sgcaptcha/…`) al posto del JSON. Misurato il 18/09/2026 con una
-diagnosi apposita lanciata da un runner: **20 richieste su 20 respinte, con
-qualunque User-Agent**. È l'indirizzo dei datacenter a essere filtrato, non il
-modo di presentarsi; da una connessione normale le stesse richieste passano.
+(`/.well-known/sgcaptcha/…`) al posto del JSON. Misurato il 18/09/2026: da uno
+stesso runner, **20 richieste su 20 respinte** con qualunque User-Agent — il
+filtro guarda l'indirizzo, non come ci si presenta, e una volta che scatta dura
+minuti. Non è però un muro: nello stesso pomeriggio altre esecuzioni sono
+passate senza problemi.
 
-Così il lavoro lo fa il Mac e GitHub fa la guardia:
+Da qui la strategia, che non aggira nulla e non maschera nulla:
 
-- **il Mac**, ogni giorno alle 8:30, con l'agente installato da
-  `locale/installa.sh`: legge la fonte, rigenera `livorno.ics` e lo pubblica sul
-  repo, da cui GitHub Pages lo serve al telefono;
-- **il workflow su GitHub**, ogni giorno alle 06:00 UTC, prova comunque. Se il
-  filtro lo respinge resta verde con un avviso e non tocca il file, ma il suo
-  controllo di anzianità continua a valere: se il Mac stesse fermo per più di
-  tre giorni diventerebbe rosso e arriverebbe la mail. È la sentinella che
-  sorveglia il Mac — e se un giorno il filtro sparisse, GitHub ricomincerebbe a
-  fare il lavoro da sé.
+- **il workflow parte ogni due ore** (`cron: 7 */2 * * *`). Ogni esecuzione è un
+  runner nuovo, quindi un indirizzo nuovo: dodici occasioni al giorno di trovare
+  il filtro abbassato;
+- **appena una riesce, le altre non disturbano più la fonte**: se `livorno.ics`
+  è stato generato da meno di `FRESCO` ore (20), l'esecuzione esce subito senza
+  fare nemmeno una richiesta. Su una giornata normale la società riceve **una
+  sola lettura**, tre richieste in tutto;
+- **quando viene respinto** non insiste: una richiesta, avviso nel log, file
+  intatto, esito verde. Ci riproverà la volta dopo, da un altro indirizzo;
+- **se non ci riuscisse per tre giorni** l'esecuzione diventa rossa e arriva la
+  mail: a quel punto il problema è reale e va guardato.
 
-Nessuna pagina di controllo viene aggirata: si legge un endpoint pubblico, in
-sola lettura, tre richieste al giorno, da una connessione normale.
+In più, come rinforzo facoltativo, **il Mac** può fare la stessa cosa alle 8:30
+con l'agente di `locale/installa.sh`: da una connessione normale le richieste
+passano sempre. Rispetta lo stesso risparmio della fonte, quindi se GitHub ha
+già aggiornato il calendario il Mac non chiede niente, e se il Mac resta spento
+non cambia nulla — è una cintura in più, non una dipendenza.
 
-### Installare o togliere la generazione dal Mac
+Nessuna pagina di controllo viene aggirata e nessun indirizzo viene mascherato:
+si legge un endpoint pubblico, in sola lettura, e si riprova più tardi quando
+viene detto di no.
+
+### Installare o togliere il rinforzo sul Mac
 
 ```
 git clone https://github.com/alepog/livorno-calendario.git ~/Claude/livorno-calendario
@@ -106,11 +119,13 @@ python prova_genera_ics.py      # il generatore, con una finta fonte HTTP locale
 ./locale/prova_aggiorna.sh      # la pubblicazione dal Mac, su repository finti
 ```
 
-Venticinque prove contro una finta fonte locale, senza rete: risposta parziale,
+Trenta prove contro una finta fonte locale, senza rete: risposta parziale,
 risposta vuota, HTTP 500, pagina di manutenzione e pagina anti-bot al posto del
 JSON, data illeggibile, titolo inatteso, partita dichiarata in trasferta, cambio
 di stagione, paginazione, righe lunghe, calendario vecchio, e i controlli che
-intercettano sia una partita persa sia un file rotto. Girano anche in CI prima
+intercettano sia una partita persa sia un file rotto, più il risparmio della
+fonte (calendario fresco: nessuna richiesta) e la rinuncia immediata davanti
+alla pagina di controllo. Girano anche in CI prima
 di ogni generazione: se una fallisce, `livorno.ics` non viene toccato.
 
 Le prove della pubblicazione (18 verifiche, senza rete e senza GitHub) coprono i

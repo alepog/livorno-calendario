@@ -1,5 +1,7 @@
 # Calendario partite in casa dell'US Livorno 1915
 
+[![Aggiorna calendario](https://github.com/alepog/livorno-calendario/actions/workflows/aggiorna.yml/badge.svg)](https://github.com/alepog/livorno-calendario/actions/workflows/aggiorna.yml)
+
 Genera `livorno.ics` con le sole partite **casalinghe** del Livorno,
 leggendole dall'API pubblica del sito ufficiale `uslivorno.com`.
 
@@ -111,6 +113,28 @@ git config credential."https://github.com".helper '!gh auth git-credential'
 - Il `DTSTAMP` viene riscritto a ogni esecuzione riuscita: è il battito che fa
   capire, dal file stesso, quando la fonte è stata letta l'ultima volta. Per
   questo c'è un commit al giorno anche quando le partite non cambiano.
+
+## Controllare che sia tutto in ordine
+
+```
+python3 verifica_pubblicato.py
+```
+
+Scarica il calendario **pubblicato** come fa l'iPhone, rilegge la fonte e mette
+le due cose a confronto partita per partita: dice `tutto coincide` oppure elenca
+le differenze (ed esce con errore). È la risposta alla domanda "posso fidarmi di
+quello che vedo sul telefono?".
+
+Il pallino verde qui in cima dice com'è andata l'ultima esecuzione. Una fila di
+esecuzioni verdi con l'avviso «pagina di controllo anti-bot» è il funzionamento
+normale, non un guasto: vuol dire che quel runner è stato respinto e che il
+calendario era già aggiornato o lo sarà al tentativo successivo.
+
+Attenzione a cosa garantisce questa verifica: che il calendario riproduce
+fedelmente quello che pubblica la società. L'orario del fischio d'inizio arriva
+dal campo `zaki_match_date` della loro banca dati, e sul sito non esiste una
+seconda copia leggibile con cui confrontarlo: se la società sbaglia lì, sbaglia
+anche il calendario.
 
 ## Prove
 

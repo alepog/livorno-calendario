@@ -40,16 +40,15 @@ ROMA         = ZoneInfo("Europe/Rome")
 DURATA       = timedelta(hours=2)
 LUOGO        = "Stadio Armando Picchi, Livorno"
 USCITA       = "livorno.ics"
-TENTATIVI    = 6
-ATTESE       = (5, 20, 60, 120, 240)   # il filtro anti-bot del sito va e viene: lo si aspetta
+TENTATIVI    = 4
+ATTESE       = (5, 20, 60)         # secondi fra un tentativo e il successivo
 
-# Ci si presenta come un normale client HTTP: token compatibile con i browser, piu' il
-# nome del progetto e dove trovarlo. Cookie e redirect si gestiscono come li gestisce un
-# browser, cosi' l'eventuale via libera del filtro vale anche per le richieste successive.
+# Ci si presenta dicendo chi siamo e dove trovarci. Provato: dai runner di GitHub il
+# filtro anti-bot del sito risponde con la sua pagina di controllo a prescindere dallo
+# User-Agent (20 richieste su 20, il 18/09/2026), quindi fingersi un browser non
+# servirebbe a niente. Cookie e redirect si gestiscono come fa un client normale.
 INTESTAZIONI = {
-    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 "
-                   "livorno-calendario/1.0 (+https://github.com/alepog/livorno-calendario)"),
+    "User-Agent": "livorno-calendario/1.0 (+https://github.com/alepog/livorno-calendario)",
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
 }

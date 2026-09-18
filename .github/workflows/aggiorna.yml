@@ -10,6 +10,11 @@ on:
     # letta una volta sola.
     - cron: "7 */2 * * *"
   workflow_dispatch:          # avvio manuale dal sito
+    inputs:
+      forza:
+        description: "1 = leggi comunque la fonte; 0 = comportati come un'esecuzione programmata"
+        default: "1"
+        type: string
   push:
     branches: [main]
 
@@ -26,9 +31,8 @@ jobs:
     timeout-minutes: 15
     env:
       VIVO: ${{ secrets.HEALTHCHECK_URL }}   # facoltativo, vedi README
-      # Le esecuzioni programmate rispettano il risparmio della fonte; un avvio
-      # manuale o un push vogliono una lettura vera, quindi la forzano.
-      FORZA: ${{ github.event_name != 'schedule' && '1' || '' }}
+      EVENTO: ${{ github.event_name }}
+      FORZA_CHIESTA: ${{ inputs.forza }}
     steps:
       - uses: actions/checkout@v7
 
@@ -40,7 +44,16 @@ jobs:
         run: python -B -W error prova_genera_ics.py
 
       - name: Genera livorno.ics
-        run: python genera_ics.py
+        # Le esecuzioni programmate rispettano il risparmio della fonte: se il
+        # calendario e' fresco non parte nessuna richiesta. Un avvio manuale o un
+        # push vogliono una lettura vera e la forzano, tranne se si chiede
+        # esplicitamente "forza=0" per provare il comportamento programmato.
+        run: |
+          if [ "$EVENTO" != "schedule" ] && [ "$FORZA_CHIESTA" != "0" ]; then
+            export FORZA=1
+          fi
+          echo "evento=$EVENTO forza=${FORZA:-(no)}"
+          python genera_ics.py
 
       - name: Pubblica se e' cambiato
         run: |

@@ -322,6 +322,18 @@ class ProvaFileValido(Base):
         self.assertTrue(any("partite perse per strada" in x for x in guai), guai)
         self.assertEqual(g.verifica(testo, {uid(1), uid(3), uid(4)}), [])
 
+    def test_la_verifica_intercetta_una_sparizione_senza_motivo(self):
+        """Rete di sicurezza sulla fusione: se un UID pubblicato esce dal file
+        senza essere fra quelli tolti di proposito, il controllo lo grida."""
+        esegui()
+        testo = contenuto("")
+        guai = g.verifica(testo, {uid(1), uid(3), uid(4)},
+                          pubblicati={uid(1), uid(3), uid(4), uid(7)}, tolti=set())
+        self.assertTrue(any("scomparse senza una ragione" in x for x in guai), guai)
+        self.assertEqual(g.verifica(testo, {uid(1), uid(3), uid(4)},
+                                    pubblicati={uid(1), uid(3), uid(4), uid(7)},
+                                    tolti={uid(7)}), [])
+
     def test_la_verifica_intercetta_un_file_rotto(self):
         self.assertTrue(g.verifica("BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n", set()))
         rotto = ("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x\r\nEND:VEVENT\r\n"

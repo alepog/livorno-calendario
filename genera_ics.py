@@ -16,7 +16,9 @@ Tre difese, in ordine:
    parziale o un guasto della fonte possono solo aggiungere o correggere, mai
    cancellare. Si toglie solo cio' che la fonte dichiara esplicitamente in
    trasferta e cio' che e' passato da piu' di OBLIO;
-3. il file completo viene validato prima di sostituire quello in uso, e la
+3. il file completo viene validato prima di sostituire quello in uso: fra i
+   controlli c'e' che nessuna partita gia' pubblicata sia sparita senza una
+   ragione dichiarata, quindi anche un errore nella fusione qui si vede. La
    scrittura e' atomica: se qualcosa non torna resta il file di prima.
 
 Le partite senza orario ufficiale diventano eventi "tutto il giorno":
@@ -277,9 +279,10 @@ def firma(righe):
 
 def unisci(partite, trasferte, pubblicati, ora):
     """Fonde la fonte col file in uso: si aggiunge e si corregge, non si cancella.
-    Restituisce (eventi in ordine di data, UID che il file deve contenere)."""
+    Restituisce (eventi in ordine di data, UID che il file deve contenere,
+    UID togli di proposito da cio' che era pubblicato)."""
     limite = date.today() - OBLIO
-    eventi = []
+    eventi, tolti = [], set()
     for uid, p in partite.items():
         righe = righe_evento(p)
         prima = pubblicati.get(uid)
@@ -303,12 +306,15 @@ def unisci(partite, trasferte, pubblicati, ora):
             continue
         if uid in trasferte:
             avvisa(f"{uid} per la fonte ora si gioca in trasferta: lo tolgo dal calendario")
+            tolti.add(uid)
             continue
         g = giorno_di(prima)
         if g is None:
             avvisa(f"{uid} nel calendario senza una data leggibile: lo tolgo")
+            tolti.add(uid)
             continue
         if g < limite:
+            tolti.add(uid)
             continue                     # passato remoto: si lascia andare
         if g >= date.today():
             avvisa(f"{uid} ({g:%d/%m/%Y}) non e' piu' nell'elenco della fonte: lo tengo "
@@ -317,13 +323,15 @@ def unisci(partite, trasferte, pubblicati, ora):
     eventi.sort(key=lambda x: x[0])
     finali = [righe for _, righe in eventi]
     attesi = {r.split(":", 1)[1] for righe in finali for r in righe if r.startswith("UID:")}
-    return finali, attesi
+    return finali, attesi, tolti
 
 
 # ----------------------------------------------------------------- validazione
 
-def verifica(testo, attesi):
-    """Controlla il file prima di pubblicarlo. attesi = UID che devono esserci."""
+def verifica(testo, attesi, pubblicati=frozenset(), tolti=frozenset()):
+    """Controlla il file prima di pubblicarlo.
+    attesi: UID che devono esserci. pubblicati: UID che c'erano prima.
+    tolti: i soli UID che si possono essere persi, perche' via di proposito."""
     guai = []
     if not testo.endswith("\r\n"):
         guai.append("il file non finisce con CRLF")
@@ -352,6 +360,10 @@ def verifica(testo, attesi):
     perse = set(attesi) - set(trovati)
     if perse:
         guai.append("partite perse per strada: " + ", ".join(sorted(perse)))
+    svanite = set(pubblicati) - set(trovati) - set(tolti)
+    if svanite:
+        guai.append("partite pubblicate e ora scomparse senza una ragione: "
+                    + ", ".join(sorted(svanite)))
     return guai
 
 
@@ -420,9 +432,9 @@ def main():
         rinuncia("nessuna partita in casa nei dati ricevuti")
     print(f"stagione {nome} - in casa dalla fonte: {len(partite)}, "
           f"nel calendario in uso: {len(pubblicati)}")
-    eventi, attesi = unisci(partite, trasferte, pubblicati, ora)
+    eventi, attesi, tolti = unisci(partite, trasferte, pubblicati, ora)
     testo = ics(eventi, nome)
-    guai = verifica(testo, attesi)
+    guai = verifica(testo, attesi, pubblicati, tolti)
     if guai:
         for g in guai:
             print(f"::error::{g}")

@@ -12,8 +12,10 @@ Incollare questo indirizzo come *calendario con abbonamento*
 (iPhone: Impostazioni → App → Calendario → Account → Aggiungi account → Altro):
 
 ```
-https://raw.githubusercontent.com/alepog/livorno-calendario/main/livorno.ics
+webcal://alepog.github.io/livorno-calendario/livorno.ics
 ```
+
+(in alternativa `https://raw.githubusercontent.com/alepog/livorno-calendario/main/livorno.ics`)
 
 ## Note
 
@@ -22,3 +24,8 @@ https://raw.githubusercontent.com/alepog/livorno-calendario/main/livorno.ics
   e diventano eventi con orario appena il club lo pubblica.
 - Casa/trasferta si deduce dal titolo: viene tenuto solo ciò che inizia
   con "Livorno".
+- Se il sito della società non risponde o risponde a vuoto, le richieste
+  vengono ritentate; se non bastano il file resta quello del giorno prima e
+  il workflow segnala solo un avviso. Diventa un errore se il calendario
+  non si aggiorna da più di tre giorni: così l'allarme arriva quando serve
+  davvero.
